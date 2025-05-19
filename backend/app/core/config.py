@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     
     # 外部API設定
     PDF_SPLITTER_URL: str = os.getenv("PDF_SPLITTER_URL", "http://localhost:8000")
+    N8N_API_URL: str = os.getenv("N8N_API_URL", "http://n8n-api:5678")
     
     # 文件上傳設定
     UPLOAD_TIMEOUT_MINUTES: int = int(os.getenv("UPLOAD_TIMEOUT_MINUTES", "10"))
