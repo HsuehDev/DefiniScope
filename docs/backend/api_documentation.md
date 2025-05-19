@@ -12,7 +12,7 @@
 
 ## 2. 認證 API
 
-### 2.1 註冊
+### 2.1 註冊 (已實現)
 
 - **端點**: `/api/auth/register`
 - **方法**: `POST`
@@ -31,11 +31,22 @@
     "created_at": "2023-08-18T12:34:56.789Z"
   }
   ```
-- **請求要求**:
+- **錯誤回應** (409 Conflict):
+  ```json
+  {
+    "detail": "使用者已存在"
+  }
+  ```
+- **驗證規則**:
   - 密碼長度至少 8 個字元，包含至少一個大寫字母和一個數字
   - 電子郵件格式必須有效
+- **實現說明**:
+  - 使用 bcrypt 對密碼進行安全雜湊處理
+  - 使用 Pydantic 進行輸入驗證
+  - 生成 UUID v4 作為用戶唯一標識
+  - 在 MinIO 中需為用戶創建專屬bucket (待實現)
 
-### 2.2 登入
+### 2.2 登入 (已實現)
 
 - **端點**: `/api/auth/login`
 - **方法**: `POST`
@@ -55,8 +66,19 @@
     "token_type": "bearer"
   }
   ```
+- **錯誤回應** (401 Unauthorized):
+  ```json
+  {
+    "detail": "帳號或密碼錯誤"
+  }
+  ```
+- **實現說明**:
+  - access_token 有效期為 30 分鐘
+  - refresh_token 有效期為 7 天
+  - 登入時會更新用戶的最後登入時間
+  - 登入使用兼容OAuth2的表單格式 (username/password)
 
-### 2.3 更新 Token
+### 2.3 更新 Token (已實現)
 
 - **端點**: `/api/auth/refresh`
 - **方法**: `POST`
@@ -73,8 +95,19 @@
     "token_type": "bearer"
   }
   ```
+- **錯誤回應** (401 Unauthorized):
+  ```json
+  {
+    "detail": "無效或過期的刷新令牌"
+  }
+  ```
+- **實現說明**:
+  - 驗證refresh_token的簽名和有效期
+  - 確保token類型為"refresh"
+  - 生成新的access_token
+  - 未來需實現token黑名單機制 (待實現)
 
-### 2.4 登出
+### 2.4 登出 (已實現)
 
 - **端點**: `/api/auth/logout`
 - **方法**: `POST`
@@ -85,6 +118,42 @@
     "detail": "成功登出"
   }
   ```
+- **實現說明**:
+  - 使用JWT token進行用戶身份驗證
+  - 登出後需將refresh_token加入黑名單 (待實現)
+  - 用戶必須處於已登入狀態才能登出
+
+### 2.5 JWT令牌設計
+
+系統使用JWT (JSON Web Token) 實現認證和授權機制：
+
+- **Access Token 結構**:
+  ```json
+  {
+    "sub": "使用者UUID",
+    "exp": "過期時間戳",
+    "iat": "簽發時間戳",
+    "jti": "令牌唯一ID",
+    "type": "access"
+  }
+  ```
+
+- **Refresh Token 結構**:
+  ```json
+  {
+    "sub": "使用者UUID",
+    "exp": "過期時間戳",
+    "iat": "簽發時間戳",
+    "jti": "令牌唯一ID",
+    "type": "refresh"
+  }
+  ```
+
+- **安全設計**:
+  - 使用HS256演算法簽名
+  - Access Token有效期較短 (30分鐘)，減少被盜用風險
+  - Refresh Token有效期較長 (7天)，提高使用者體驗
+  - 令牌包含類型區分，防止混用
 
 ## 3. 檔案管理 API
 
@@ -248,9 +317,8 @@
       {
         "chat_uuid": "550e8400-e29b-41d4-a716-446655440002",
         "title": "關於概念型定義的討論",
-        "created_at": "2023-08-18T12:34:56.789Z",
-        "updated_at": "2023-08-18T13:00:00.000Z",
-        "message_count": 10
+        "last_message_time": "2023-08-18T14:30:00.000Z",
+        "message_count": 6
       }
     ]
   }
