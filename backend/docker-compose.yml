@@ -1,0 +1,148 @@
+version: '3.8'
+services:
+  # 後端API服務
+  backend:
+    build: .
+    deploy:
+      replicas: 4
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      - postgres_master
+      - redis_master
+      - minio
+      - pdf_sentence_splitter
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres_master:5432/app
+      - MINIO_URL=minio:9000
+      - MINIO_ACCESS_KEY=minioaccess
+      - MINIO_SECRET_KEY=miniosecret
+      - REDIS_URL=redis://redis_master:6379/0
+      - PDF_SPLITTER_URL=http://pdf_sentence_splitter:8000
+      - MAX_WORKERS=8
+      - CONCURRENCY_LIMIT=60
+      - UPLOAD_TIMEOUT_MINUTES=10
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Celery Worker服務
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    depends_on:
+      - redis_master
+      - postgres_master
+      - minio
+      - pdf_sentence_splitter
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres_master:5432/app
+      - MINIO_URL=minio:9000
+      - MINIO_ACCESS_KEY=minioaccess
+      - MINIO_SECRET_KEY=miniosecret
+      - REDIS_URL=redis://redis_master:6379/0
+      - PDF_SPLITTER_URL=http://pdf_sentence_splitter:8000
+      - CELERY_CONCURRENCY=8
+    restart: unless-stopped
+
+  # Celery Beat定時任務服務
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.beat
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 256M
+    depends_on:
+      - redis_master
+    environment:
+      - REDIS_URL=redis://redis_master:6379/0
+      - DATABASE_URL=postgresql://user:password@postgres_master:5432/app
+    restart: unless-stopped
+
+  # PostgreSQL主資料庫
+  postgres_master:
+    image: postgres:14
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - POSTGRES_DB=app
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    command: postgres -c max_connections=200
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis主節點
+  redis_master:
+    image: redis:7.0-alpine
+    volumes:
+      - redis_master_data:/data
+    command: redis-server --requirepass redis_password --maxclients 100
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis_password", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MinIO物件儲存
+  minio:
+    image: minio/minio
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_master_data:
+  redis_master_data:
+  minio_data: 
