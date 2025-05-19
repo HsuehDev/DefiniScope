@@ -2,6 +2,7 @@
 全局配置設定
 """
 import os
+import datetime
 from typing import List, Union, Optional
 from pydantic import BaseSettings, validator, PostgresDsn, AnyHttpUrl
 
@@ -13,6 +14,7 @@ class Settings(BaseSettings):
     # 應用基本設定
     APP_NAME: str = "AI文件分析與互動平台"
     API_PREFIX: str = "/api"
+    SERVER_START_TIME: str = datetime.datetime.now(datetime.timezone.utc).isoformat()
     
     # 跨域設定
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "https://localhost:3000"]

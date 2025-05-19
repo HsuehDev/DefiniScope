@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.api.websockets import router as websocket_router
+from app.api.websockets.listener import init_listeners
 from app.core.config import settings
 from app.core.events import startup_event, shutdown_event
 
@@ -32,8 +34,14 @@ app.add_middleware(
 app.add_event_handler("startup", startup_event)
 app.add_event_handler("shutdown", shutdown_event)
 
+# 初始化 Redis Pub/Sub 監聽器
+init_listeners(app)
+
 # 添加API路由
 app.include_router(api_router, prefix="/api")
+
+# 添加 WebSocket 路由
+app.include_router(websocket_router)
 
 # 健康檢查端點
 @app.get("/health", tags=["健康檢查"])
