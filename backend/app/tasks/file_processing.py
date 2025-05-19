@@ -30,6 +30,7 @@ from app.schemas.websocket import (
     ProcessingCompletedEvent,
     ProcessingFailedEvent
 )
+from app.utils.redis_publisher import publish_file_update
 
 # 設定日誌
 logger = logging.getLogger(__name__)
@@ -86,7 +87,7 @@ def process_uploaded_file(self, file_uuid: str) -> Dict[str, Any]:
         # 步驟 2: 句子儲存到資料庫
         sentence_uuids = store_sentences_to_db(file_uuid_obj, user_uuid, sentences_with_pages)
         
-        # 步驟 3: 句子分類 (調用 n8n API)
+        # 步驟 3: 句子分類：調用 n8n API 進行 CD/OD 分類
         classification_results = classify_sentences(file_uuid, user_uuid, sentence_uuids, sentences_with_pages)
         
         # 步驟 4: 儲存分類結果
@@ -212,6 +213,16 @@ def send_processing_started_event(file_uuid: str, user_uuid: UUID) -> None:
     
     # 發送到特定使用者的 WebSocket 連接
     ws_manager.send_message_to_user(str(user_uuid), f"processing/{file_uuid}", event.dict())
+    
+    # 也使用 Redis Pub/Sub 發布
+    publish_file_update(
+        file_uuid,
+        "processing_started",
+        {
+            "status": "processing"
+        }
+    )
+    
     logger.info(f"已發送處理開始事件: {event.dict()}")
 
 
