@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  postgres_master:
+    image: postgres:14
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - POSTGRES_DB=app
+    ports:
+      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf -c max_connections=200
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  postgres_slave:
+    image: postgres:14
+    volumes:
+      - postgres_slave_data:/var/lib/postgresql/data
+      - ./postgres/slave-postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - POSTGRES_DB=app
+    ports:
+      - "5433:5432"
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf -c hba_file=/etc/postgresql/pg_hba.conf -c max_connections=200
+    depends_on:
+      - postgres_master
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres_master
+      - postgres_slave
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    volumes:
+      - minio_data:/data
+      - ./minio/config:/root/.minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+  minio_setup:
+    image: minio/mc
+    depends_on:
+      - minio
+    volumes:
+      - ./minio/scripts:/scripts
+      - ./minio/policies:/policies
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    entrypoint: ["/bin/sh", "/scripts/setup-minio.sh"]
+
+  db_backup:
+    image: postgres:14
+    volumes:
+      - ./scripts:/scripts
+      - backup_data:/backup
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    depends_on:
+      - postgres_master
+      - minio
+    command: ["/bin/sh", "-c", "apt-get update && apt-get install -y curl && curl -O https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x mc && mv mc /usr/local/bin/mc && echo '0 0 * * * /scripts/backup.sh >> /backup/cron.log 2>&1' > /var/spool/cron/crontabs/root && crond -f"]
+    restart: unless-stopped
+
+  db_healthcheck:
+    image: postgres:14
+    volumes:
+      - ./scripts:/scripts
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=user
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    depends_on:
+      - postgres_master
+      - postgres_slave
+      - minio
+    command: ["/bin/sh", "-c", "apt-get update && apt-get install -y curl && curl -O https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x mc && mv mc /usr/local/bin/mc && echo '*/5 * * * * /scripts/healthcheck.sh >> /var/log/cron.log 2>&1' > /var/spool/cron/crontabs/root && crond -f"]
+    restart: unless-stopped
+
+volumes:
+  postgres_master_data:
+  postgres_slave_data:
+  minio_data:
+  backup_data:
+  pgadmin_data: 

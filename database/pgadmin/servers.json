@@ -1,0 +1,24 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "PostgreSQL主節點",
+      "Group": "系統資料庫",
+      "Host": "postgres_master",
+      "Port": 5432,
+      "MaintenanceDB": "app",
+      "Username": "user",
+      "SSLMode": "prefer",
+      "Comment": "主節點資料庫，用於讀寫操作"
+    },
+    "2": {
+      "Name": "PostgreSQL從節點",
+      "Group": "系統資料庫",
+      "Host": "postgres_slave",
+      "Port": 5432,
+      "MaintenanceDB": "app",
+      "Username": "user",
+      "SSLMode": "prefer",
+      "Comment": "從節點資料庫，僅用於讀取操作"
+    }
+  }
+} 
