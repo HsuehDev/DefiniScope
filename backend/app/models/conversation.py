@@ -12,6 +12,7 @@ from sqlmodel import Field, SQLModel, Relationship
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.message import Message
+    from app.models.query import Query
 
 
 class Conversation(SQLModel, table=True):
@@ -42,6 +43,7 @@ class Conversation(SQLModel, table=True):
     # 關聯
     user: "User" = Relationship(back_populates="conversations")
     messages: List["Message"] = Relationship(back_populates="conversation", sa_relationship_kwargs={"cascade": "all, delete"})
+    queries: List["Query"] = Relationship(back_populates="conversation", sa_relationship_kwargs={"cascade": "all, delete"})
     
     # 資料表註釋與索引設定
     __table_args__ = {

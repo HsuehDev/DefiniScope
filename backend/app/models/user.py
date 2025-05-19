@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.conversation import Conversation
     from app.models.message import Message
     from app.models.upload_chunk import UploadChunk
+    from app.models.query import Query
 
 
 class User(SQLModel, table=True):
@@ -53,6 +54,7 @@ class User(SQLModel, table=True):
     conversations: List["Conversation"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"})
     messages: List["Message"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"})
     upload_chunks: List["UploadChunk"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"})
+    queries: List["Query"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete"})
     
     # 資料表註釋與索引設定
     __table_args__ = {
