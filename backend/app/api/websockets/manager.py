@@ -4,7 +4,8 @@ from typing import Dict, List, Set, Optional
 import json
 import asyncio
 import datetime
-from fastapi import WebSocket, WebSocketDisconnect, WebSocketState
+from fastapi import WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketState
 from loguru import logger
 
 
