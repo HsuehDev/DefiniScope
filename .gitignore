@@ -84,4 +84,13 @@ yarn-debug.log
 
 # Playwright
 playwright-report/
-test-results/ 
+test-results/
+
+# Tests specific directories
+src/__tests__/
+frontend/src/__tests__/
+*/e2e/__tests__/
+
+# Additional temporary files
+*.swp
+*~ 
