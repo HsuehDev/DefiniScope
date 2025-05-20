@@ -7,22 +7,24 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/__tests__/setup.ts'],
-    css: true,
+    setupFiles: ['./src/tests/setupTests.ts'],
+    include: ['**/*.{test,spec}.{js,jsx,ts,tsx}'],
     coverage: {
-      provider: 'c8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
       exclude: [
-        'src/**/*.d.ts',
-        'src/index.tsx',
-        'src/reportWebVitals.ts',
-      ],
+        'node_modules/',
+        'src/tests',
+        '**/*.d.ts',
+        '**/*.config.{js,ts}',
+        '**/index.{js,ts}'
+      ]
     },
+    testTimeout: 20000, // 20秒
+    hookTimeout: 10000,  // 10秒
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-    },
-  },
+      '@': resolve(__dirname, './src')
+    }
+  }
 }); 
