@@ -1,6 +1,18 @@
 """
-檔案處理任務
-包含檔案處理相關的 Celery 任務，如 PDF 提取、句子分類等
+檔案處理相關的 Celery 任務
+
+重構建議:
+1. 將核心邏輯與 Celery 任務分離:
+   - 創建 app/core/file_extractor.py 類處理提取邏輯
+   - 創建 app/core/sentence_processor.py 類處理句子分類
+
+2. 使用依賴注入模式:
+   - 避免直接導入依賴，改用配置參數傳遞
+   - 例如: def extract_text(file_uuid, downloader=None, storage=None)
+
+3. 添加單元測試專用的快捷函數:
+   - 提供不依賴 Celery 的函數版本
+   - 例如: extract_text_standalone() 函數
 """
 import logging
 import time
