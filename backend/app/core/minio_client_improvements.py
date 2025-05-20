@@ -1,6 +1,6 @@
 """
-MinIO客戶端封裝
-提供文件存儲和管理功能
+MinIO客戶端封裝改進建議
+針對審計中發現的問題提供改進實現
 """
 import os
 import io
@@ -22,7 +22,7 @@ from minio.error import S3Error, InvalidResponseError, MinioException
 from fastapi import HTTPException, status
 
 # 使用應用配置
-from app.core.config import settings
+from app.core.mock_config import settings
 
 
 logger = logging.getLogger(__name__)
@@ -662,18 +662,10 @@ class MinioClient:
                 secure=settings.MINIO_SECURE
             )
             
-            # 默認桶名稱
-            self.default_bucket = getattr(settings, 'MINIO_DEFAULT_BUCKET', 'default')
-            
-            # 在非測試環境下驗證默認桶
-            is_test_env = os.environ.get('TESTING', 'False').lower() == 'true'
-            if not is_test_env:
-                try:
-                    if not self.client.bucket_exists(self.default_bucket):
-                        self.client.make_bucket(self.default_bucket)
-                        logger.info(f"成功創建默認存儲桶: {self.default_bucket}")
-                except:
-                    logger.warning(f"無法驗證默認存儲桶: {self.default_bucket}")
+            # 確保默認存儲桶存在
+            if not self.client.bucket_exists(settings.MINIO_DEFAULT_BUCKET):
+                self.client.make_bucket(settings.MINIO_DEFAULT_BUCKET)
+                logger.info(f"成功創建默認存儲桶: {settings.MINIO_DEFAULT_BUCKET}")
             
             logger.info(f"MinIO客戶端初始化成功，連接到: {settings.MINIO_ENDPOINT}")
         except Exception as e:
@@ -695,7 +687,7 @@ class MinioClient:
         Raises:
             HTTPException: 如果上傳失敗
         """
-        bucket_name = bucket_name or self.default_bucket
+        bucket_name = bucket_name or settings.MINIO_DEFAULT_BUCKET
         
         try:
             # 檢查文件是否存在
@@ -768,7 +760,7 @@ class MinioClient:
         Raises:
             HTTPException: 如果下載失敗
         """
-        bucket_name = bucket_name or self.default_bucket
+        bucket_name = bucket_name or settings.MINIO_DEFAULT_BUCKET
         
         try:
             # 確保輸出目錄存在
@@ -803,7 +795,7 @@ class MinioClient:
         Raises:
             HTTPException: 如果生成URL失敗
         """
-        bucket_name = bucket_name or self.default_bucket
+        bucket_name = bucket_name or settings.MINIO_DEFAULT_BUCKET
         expires_seconds = int(expires.total_seconds() if expires else settings.DEFAULT_PRESIGNED_URL_EXPIRY)
         
         try:
@@ -833,7 +825,7 @@ class MinioClient:
         Raises:
             HTTPException: 如果刪除失敗
         """
-        bucket_name = bucket_name or self.default_bucket
+        bucket_name = bucket_name or settings.MINIO_DEFAULT_BUCKET
         
         try:
             self.client.remove_object(bucket_name, object_name)
@@ -842,8 +834,4 @@ class MinioClient:
             
             return True
         except Exception as e:
-            handle_minio_error(e, f"刪除文件 {bucket_name}/{object_name}")
-
-
-# 創建全局單例
-minio_client = MinioClient() 
+            handle_minio_error(e, f"刪除文件 {bucket_name}/{object_name}") 
