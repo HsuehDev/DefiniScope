@@ -69,6 +69,7 @@ nougat_checkpoints/
 # Database
 *.db
 *.sqlite3
+database/replica/
 
 # Test coverage
 .coverage
