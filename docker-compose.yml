@@ -1,38 +1,77 @@
-version: '3.8'
-
 services:
-  backend:
-    build:
-      context: ./backend
+  nginx:
+    build: 
+      context: ./nginx
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "80:80"
+      - "443:443"
     volumes:
-      - ./backend:/app
-    environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/thesis_db
-      - N8N_API_BASE_URL=https://n8n.hsueh.tw
+      - ./nginx/conf:/etc/nginx/conf.d
     depends_on:
-      - db
-      - redis
+      - frontend
+      - backend
+    restart: unless-stopped
+    networks:
+      - frontend_network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:8000/api
+      - VITE_API_BASE_URL=/api
+    networks:
+      - frontend_network
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
-  db:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend:/app
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql://postgres:postgres@db_master:5432/thesis_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MINIO_URL=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - N8N_API_BASE_URL=https://n8n.hsueh.tw
+      - PDF_SPLITTER_URL=http://split_sentences:8000
+      - MAX_WORKERS=8
+      - CONCURRENCY_LIMIT=60
+      - UPLOAD_TIMEOUT_MINUTES=10
+    depends_on:
+      - db_master
+      - redis
+      - minio
+      - split_sentences
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - frontend_network
+      - backend_network
+
+  db_master:
     image: postgres:14
     ports:
       - "5432:5432"
@@ -41,32 +80,115 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=thesis_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend_network
+    command: postgres -c max_connections=200
+
+  db_slave:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=thesis_db
+    volumes:
+      - postgres_slave_data:/var/lib/postgresql/data
+      - ./database/replica:/docker-entrypoint-initdb.d
+    depends_on:
+      - db_master
+    networks:
+      - backend_network
 
   redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    command: redis-server --requirepass redis --maxclients 100
     volumes:
       - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend_network
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - backend_network
 
   celery:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    command: celery -A app.tasks.worker worker --loglevel=info
+      dockerfile: Dockerfile.worker
+    command: celery -A app.worker worker --loglevel=info
     volumes:
       - ./backend:/app
     environment:
       - ENVIRONMENT=development
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/thesis_db
+      - DATABASE_URL=postgresql://postgres:postgres@db_master:5432/thesis_db
+      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MINIO_URL=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - N8N_API_BASE_URL=https://n8n.hsueh.tw
+      - PDF_SPLITTER_URL=http://split_sentences:8000
     depends_on:
       - redis
-      - db
+      - db_master
+      - minio
+      - split_sentences
       - backend
+    networks:
+      - backend_network
+
+  split_sentences:
+    build:
+      context: ./split_sentences
+      dockerfile: Dockerfile
+    volumes:
+      - ./split_sentences:/app
+      - split_sentences_data:/app/upload_data
+    environment:
+      - MAX_WORKERS=8
+      - PYTHONUNBUFFERED=1
+    networks:
+      - backend_network
+
+networks:
+  frontend_network:
+    driver: bridge
+  backend_network:
+    driver: bridge
 
 volumes:
-  postgres_data:
+  postgres_master_data:
+  postgres_slave_data:
   redis_data:
+  minio_data:
+  split_sentences_data:
