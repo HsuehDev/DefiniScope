@@ -12,6 +12,7 @@ from sqlmodel import Field, SQLModel, Relationship
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.sentence import Sentence
+    from app.models.query import Query
 
 
 class UploadStatus(str, Enum):
@@ -81,6 +82,7 @@ class File(SQLModel, table=True):
     # 關聯
     user: "User" = Relationship(back_populates="files")
     sentences: List["Sentence"] = Relationship(back_populates="file", sa_relationship_kwargs={"cascade": "all, delete"})
+    queries: List["Query"] = Relationship(back_populates="file", sa_relationship_kwargs={"cascade": "all, delete"})
     
     # 資料表註釋與索引設定
     __table_args__ = (

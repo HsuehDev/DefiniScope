@@ -9,7 +9,7 @@ import logging
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.file import FileCreate, FileResponse
+from app.schemas.file import FileCreate, FileResponse
 from app.services.file_service import FileService
 
 router = APIRouter()
