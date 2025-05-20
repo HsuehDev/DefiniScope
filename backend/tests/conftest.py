@@ -8,6 +8,8 @@ from unittest.mock import MagicMock, patch
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy.pool import StaticPool
 from celery import Celery
+import pytest_asyncio
+from typing import Dict, Any, Generator
 
 # 確保能正確導入應用模組
 backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -223,4 +225,35 @@ def mock_db_session():
     # 聊天處理任務
     with patch("app.tasks.chat_processing.SessionLocal") as mock_session_factory:
         mock_session_factory.return_value.__enter__.return_value = mock_session
-        yield mock_session 
+        yield mock_session
+
+# pytest-httpx的配置
+@pytest.fixture(scope="function", autouse=True)
+def _httpx_mock_setup():
+    """自動配置pytest-httpx，允許更多響應和未預期的請求"""
+    import pytest_httpx
+    
+    # 使用猴子補丁來修改PyTest-HTTPX的默認行為
+    # 這樣就不需要在每個測試中手動設置
+    original_init = pytest_httpx._httpx_mock._HTTPXMockOptions.__init__
+    
+    def patched_init(self, *args, **kwargs):
+        # 調用原始的初始化
+        original_init(self, *args, **kwargs)
+        # 修改默認設置
+        self.assert_all_responses_were_requested = False
+        self.assert_all_requests_were_expected = False
+    
+    # 應用猴子補丁
+    pytest_httpx._httpx_mock._HTTPXMockOptions.__init__ = patched_init
+
+# pytest標記配置
+def pytest_configure(config):
+    """配置pytest標記"""
+    config.addinivalue_line("markers", "asyncio: mark test as asyncio")
+    config.addinivalue_line("markers", "integration: mark test as integration test (requires real API)")
+    # 添加httpx_mock標記
+    config.addinivalue_line(
+        "markers", 
+        "httpx_mock(assert_all_requests_were_expected=False, assert_all_responses_were_requested=False): Configure pytest-httpx"
+    ) 
