@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Message } from '../../types/reference';
 import ReferenceTag from '../reference/ReferenceTag';
 import ReferencePopover from '../reference/ReferencePopover';
@@ -6,15 +6,32 @@ import ReferenceContextViewer from '../reference/ReferenceContextViewer';
 import PDFPreviewModal from '../reference/PDFPreviewModal';
 import { useReferenceManager } from '../../hooks/useReferenceManager';
 
+interface Citation {
+  id: string;
+  text: string;
+  source: string;
+  page: string;
+}
+
 interface ChatMessageProps {
-  message: Message;
+  id: string;
+  content: string;
+  sender: 'user' | 'assistant';
+  timestamp: string;
+  citations?: Citation[];
 }
 
 /**
  * 聊天消息組件
  * 顯示用戶查詢或系統回答，並集成引用標籤和引用管理功能
  */
-const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({
+  id,
+  content,
+  sender,
+  timestamp,
+  citations = []
+}) => {
   const {
     hoveredReference,
     popoverPosition,
@@ -30,103 +47,72 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     closePdfPreview
   } = useReferenceManager();
 
-  // 判斷是否為用戶消息
-  const isUserMessage = message.role === 'user';
+  const [showCitations, setShowCitations] = useState(false);
 
-  // 處理消息內容，將引用標記替換為引用組件
-  const renderMessageContent = () => {
-    // 如果是用戶消息或沒有引用，直接顯示內容
-    if (isUserMessage || !message.references || message.references.length === 0) {
-      return <p className="whitespace-pre-wrap">{message.content}</p>;
-    }
+  const toggleCitations = () => {
+    setShowCitations(!showCitations);
+  };
 
-    // 處理系統回答中的引用
+  if (sender === 'user') {
     return (
-      <div>
-        <p className="whitespace-pre-wrap">{message.content}</p>
-        
-        {/* 顯示引用標籤 */}
-        <div className="mt-2 flex flex-wrap">
-          <div className="text-sm text-gray-600 mr-1 mt-1">引用來源：</div>
-          {message.references.map((reference, index) => (
-            <ReferenceTag 
-              key={`${reference.sentence_uuid}-${index}`}
-              reference={reference}
-              onClick={handleReferenceClick}
-              onHover={(ref) => {
-                const event = window.event as MouseEvent;
-                handleReferenceHover(ref, {
-                  clientX: event.clientX,
-                  clientY: event.clientY
-                } as React.MouseEvent);
-              }}
-            />
-          ))}
+      <div className="flex justify-end mb-5">
+        <div className="max-w-2xl px-5 py-4 rounded-2xl shadow-tech bg-tech-700 text-white rounded-tr-sm">
+          <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>
+          <div className="flex justify-end items-center mt-2">
+            <p className="text-xs text-tech-100">{timestamp}</p>
+          </div>
+        </div>
+        <div className="w-8 h-8 rounded-full bg-tech-700 flex items-center justify-center ml-3 shadow-tech">
+          <span className="text-white text-xs font-semibold">您</span>
         </div>
       </div>
     );
-  };
+  }
 
   return (
-    <div className={`py-4 ${isUserMessage ? 'bg-gray-50' : 'bg-white'}`}>
-      <div className="max-w-4xl mx-auto px-4">
-        <div className="flex space-x-3">
-          {/* 頭像 */}
-          <div className="flex-shrink-0">
-            <div 
-              className={`w-8 h-8 rounded-full flex items-center justify-center
-                ${isUserMessage ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}`}
+    <div className="flex justify-start mb-5">
+      <div className="w-8 h-8 rounded-full bg-tech-700 flex items-center justify-center mr-3 shadow-tech">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div className="max-w-2xl px-5 py-4 rounded-2xl shadow-tech bg-white text-tech-800 rounded-tl-sm border border-tech-500/30">
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>
+        
+        {citations.length > 0 && (
+          <div className="mt-3 border-t border-tech-500/20 pt-3">
+            <button 
+              className="flex items-center text-tech-700 text-xs hover:text-tech-500 transition-colors duration-200"
+              onClick={toggleCitations}
             >
-              {isUserMessage ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-                  <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-                </svg>
-              )}
-            </div>
+              {citations.length} 個引用來源 ({showCitations ? '收起' : '展開'})
+            </button>
+            
+            {showCitations && (
+              <div className="mt-2 space-y-2">
+                {citations.map((citation) => (
+                  <div key={citation.id} className="p-2 bg-tech-100/50 rounded-lg text-xs citation-item">
+                    <p className="text-tech-800 mb-1 truncate" title={citation.text}>{citation.text}</p>
+                    <div className="flex justify-between items-center text-tech-700">
+                      <span className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        {citation.source}
+                      </span>
+                      <span className="px-1.5 py-0.5 bg-tech-500/20 text-tech-800 rounded">P.{citation.page}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          
-          {/* 消息內容 */}
-          <div className="flex-1 overflow-hidden">
-            <div className="text-sm font-medium text-gray-700 mb-1">
-              {isUserMessage ? '你' : '助理'}
-            </div>
-            <div className="text-sm text-gray-800">
-              {renderMessageContent()}
-            </div>
-            <div className="mt-1 text-xs text-gray-500">
-              {new Date(message.created_at).toLocaleString()}
-            </div>
-          </div>
+        )}
+        
+        <div className="flex justify-end items-center mt-2">
+          <p className="text-xs text-tech-500">{timestamp}</p>
         </div>
       </div>
-      
-      {/* 引用懸停預覽 */}
-      <ReferencePopover 
-        reference={hoveredReference}
-        position={popoverPosition}
-        isVisible={showPopover}
-      />
-      
-      {/* 引用上下文查看器 */}
-      {selectedReference && (
-        <ReferenceContextViewer 
-          reference={selectedReference}
-          isOpen={showContextViewer}
-          onClose={closeContextViewer}
-        />
-      )}
-      
-      {/* PDF預覽模態框 */}
-      <PDFPreviewModal 
-        reference={pdfReference}
-        isOpen={showPdfPreview}
-        onClose={closePdfPreview}
-      />
     </div>
   );
 };
