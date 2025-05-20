@@ -64,6 +64,7 @@ export const UploadTimeoutWarning: React.FC<UploadTimeoutWarningProps> = ({
                 <div 
                   className="h-2 rounded-full bg-yellow-500" 
                   style={{ width: `${remainingTimePercent}%` }}
+                  role="progressbar"
                 />
               </div>
             </div>
