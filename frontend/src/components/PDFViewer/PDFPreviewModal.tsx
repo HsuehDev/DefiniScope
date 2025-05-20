@@ -62,7 +62,7 @@ const PDFPreviewModal: React.FC<PDFPreviewModalProps> = ({
   
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="relative bg-white rounded-lg shadow-xl w-11/12 h-5/6 flex flex-col max-w-7xl">
+      <div role="dialog" aria-modal="true" className="relative bg-white rounded-lg shadow-xl w-11/12 h-5/6 flex flex-col max-w-7xl">
         {/* 模態框標題 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-xl font-semibold text-gray-800">

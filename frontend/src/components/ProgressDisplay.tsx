@@ -71,23 +71,27 @@ export const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   className
 }) => {
   return (
-    <Container className={className}>
+    <Container className={className} data-testid="progress-display-container">
       <ProgressBarContainer>
-        <ProgressBarFill progress={progress} status={status} />
+        <ProgressBarFill 
+          progress={progress} 
+          status={status} 
+          data-testid="progress-bar-fill"
+        />
       </ProgressBarContainer>
       
       <StepInfo>
-        <StepText status={status}>
+        <StepText status={status} data-testid="progress-step-text">
           {status === 'pending' ? '等待處理' : 
            status === 'processing' ? currentStep : 
            status === 'completed' ? '處理完成' : 
            '處理失敗'}
         </StepText>
-        <ProgressPercentage>{Math.round(progress)}%</ProgressPercentage>
+        <ProgressPercentage data-testid="progress-percentage">{Math.round(progress)}%</ProgressPercentage>
       </StepInfo>
       
       {status === 'failed' && errorMessage && (
-        <ErrorMessage>{errorMessage}</ErrorMessage>
+        <ErrorMessage data-testid="progress-error-message">{errorMessage}</ErrorMessage>
       )}
     </Container>
   );
