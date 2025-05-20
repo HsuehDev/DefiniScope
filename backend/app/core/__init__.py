@@ -8,7 +8,11 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_access_token,  # 使用decode_access_token替代verify_token
-    get_current_user
+    hash_password,
+    verify_password,
+    verify_jti,
+    is_token_blacklisted,
+    add_token_to_blacklist
 )
 
 __all__ = [
@@ -17,5 +21,9 @@ __all__ = [
     "create_access_token",
     "create_refresh_token",
     "decode_access_token",  # 使用decode_access_token替代verify_token
-    "get_current_user"
+    "hash_password",
+    "verify_password",
+    "verify_jti",
+    "is_token_blacklisted",
+    "add_token_to_blacklist"
 ] 
