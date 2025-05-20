@@ -81,3 +81,7 @@ npm-debug.log
 yarn-error.log
 yarn-debug.log
 .pnpm-debug.log 
+
+# Playwright
+playwright-report/
+test-results/ 
