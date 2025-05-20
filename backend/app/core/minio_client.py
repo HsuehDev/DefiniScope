@@ -15,7 +15,8 @@ from minio.commonconfig import ComposeSource
 from minio.credentials import Provider
 from minio.deleteobjects import DeleteObject
 from minio.error import S3Error, InvalidResponseError, MinioException
-from minio.select.options import SelectObjectOptions
+# 注釋掉不再存在的導入
+# from minio.select.options import SelectObjectOptions
 from fastapi import HTTPException, status
 
 from app.core.config import settings
@@ -819,6 +820,9 @@ class MinioClientManager:
         """
         使用SQL查詢對象內容
         
+        注意：此方法在當前版本的MinIO客戶端中已不可用
+        由於minio.select.options.SelectObjectOptions類已被移除
+        
         Args:
             bucket_name: 存儲桶名稱
             object_name: 對象名稱
@@ -830,34 +834,14 @@ class MinioClientManager:
             bytes: 查詢結果
             
         Raises:
-            HTTPException: 如果查詢失敗
+            HTTPException: 不支持的操作異常
         """
-        try:
-            # 創建 SelectObjectOptions
-            options = SelectObjectOptions(
-                expression=expression,
-                input_serialization=input_serialization,
-                output_serialization=output_serialization,
-                request_progress=True
-            )
-            
-            # 執行查詢
-            data = b''
-            response = self.client.select_object_content(
-                bucket_name=bucket_name,
-                object_name=object_name,
-                options=options
-            )
-            
-            # 讀取結果
-            for event in response:
-                if event.event_type == "Records":
-                    data += event.event_data
-            
-            logger.info(f"成功從 {bucket_name}/{object_name} 查詢內容")
-            return data
-        except Exception as e:
-            self._handle_minio_error(e, f"從 {bucket_name}/{object_name} 查詢內容失敗")
+        error_msg = "select_object_content 操作在當前MinIO客戶端版本中不受支持"
+        logger.error(error_msg)
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=error_msg
+        )
     
     async def get_bucket_versioning(self, bucket_name: str) -> Dict:
         """

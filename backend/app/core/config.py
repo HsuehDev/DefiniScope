@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
     REDIS_URL: str = os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
     
+    # Celery設定
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+    CELERY_BACKEND_URL: str = os.getenv("CELERY_BACKEND_URL", REDIS_URL)
+    CELERY_CONCURRENCY: int = int(os.getenv("CELERY_CONCURRENCY", "4"))
+    CELERY_TASK_TIMEOUT: int = int(os.getenv("CELERY_TASK_TIMEOUT", "1800"))  # 30分鐘
+    
     # MinIO設定
     MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
     MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
@@ -98,6 +104,9 @@ class Settings(BaseSettings):
     N8N_BASE_URL: str = os.getenv("N8N_BASE_URL", "http://localhost:5678/webhook/")
     N8N_PROCESS_DOCUMENT_WORKFLOW_ID: str = os.getenv("N8N_PROCESS_DOCUMENT_WORKFLOW_ID", "")
     N8N_API_KEY: Optional[str] = os.getenv("N8N_API_KEY")
+    
+    # 文本處理服務設定
+    PDF_SPLITTER_URL: str = os.getenv("PDF_SPLITTER_URL", "http://localhost:8001")
     
     # 其他設定
     DEFAULT_ADMIN_EMAIL: str = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
