@@ -68,22 +68,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ redirectPath = '/app' }) => {
   };
 
   return (
-    <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-md">
-      <h1 className="text-2xl font-bold text-center text-gray-800">登入系統</h1>
+    <div className="p-8 bg-white shadow-tech-lg rounded-2xl w-full relative z-10 border border-tech-500/20">
+      <div className="flex items-center justify-center mb-6">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-tech-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      </div>
+      <h2 className="text-3xl font-bold text-center text-tech-800 mb-6">文獻智能助手</h2>
       
       {error && (
-        <div className="p-3 text-sm text-red-700 bg-red-100 rounded-md">
+        <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-md">
           {error}
         </div>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            電子郵件
-          </label>
+          <label className="block text-sm font-medium text-tech-800 mb-2">電子郵件</label>
           <input
-            id="email"
             type="email"
             value={email}
             onChange={(e) => {
@@ -91,22 +93,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ redirectPath = '/app' }) => {
               if (emailError) validateEmail();
             }}
             onBlur={validateEmail}
-            className={`mt-1 block w-full px-3 py-2 border ${
-              emailError ? 'border-red-500' : 'border-gray-300'
-            } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-            placeholder="your@email.com"
+            className={`w-full px-4 py-3 border ${
+              emailError ? 'border-red-500' : 'border-tech-500/30'
+            } rounded-xl shadow-sm focus:ring-tech-700 focus:border-tech-700 bg-tech-100/50 text-tech-800`}
+            placeholder="請輸入您的電子郵件"
             data-testid="login-email"
           />
           {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
         </div>
         
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            密碼
-          </label>
-          <div className="relative mt-1">
+          <label className="block text-sm font-medium text-tech-800 mb-2">密碼</label>
+          <div className="relative">
             <input
-              id="password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => {
@@ -114,15 +113,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ redirectPath = '/app' }) => {
                 if (passwordError) validatePassword();
               }}
               onBlur={validatePassword}
-              className={`block w-full px-3 py-2 border ${
-                passwordError ? 'border-red-500' : 'border-gray-300'
-              } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500`}
-              placeholder="••••••••"
+              className={`w-full px-4 py-3 border ${
+                passwordError ? 'border-red-500' : 'border-tech-500/30'
+              } rounded-xl shadow-sm focus:ring-tech-700 focus:border-tech-700 bg-tech-100/50 text-tech-800`}
+              placeholder="請輸入您的密碼"
               data-testid="login-password"
             />
             <button
               type="button"
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-500"
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-tech-600 hover:text-tech-800"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? '隱藏' : '顯示'}
@@ -135,22 +134,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ redirectPath = '/app' }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+            className={`w-full flex justify-center py-3 px-6 border border-transparent rounded-xl shadow-tech text-sm font-medium text-white bg-tech-700 hover:bg-tech-700/80 transition-all duration-200 hover:shadow-tech-lg ${
               isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
             }`}
             data-testid="login-submit"
           >
-            {isSubmitting ? '登入中...' : '登入'}
+            {isSubmitting ? '登入中...' : '登入系統'}
           </button>
         </div>
       </form>
       
-      <div className="text-sm text-center">
-        <span className="text-gray-600">尚未有帳號？</span>{' '}
-        <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
-          立即註冊
-        </Link>
-      </div>
+      <p className="mt-6 text-center text-sm text-tech-700">
+        還沒有帳號嗎？ <Link to="/register" className="font-medium text-tech-700 hover:text-tech-800">立即註冊</Link>
+      </p>
     </div>
   );
 };

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>設置測試認證</title>
+</head>
+<body>
+  <h2>設置測試認證</h2>
+  <div id="result"></div>
+  
+  <script>
+    // 設置令牌
+    localStorage.setItem('accessToken', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X3VzZXJfaWQiLCJleHAiOjE3MzE2MTUyNDMsImlhdCI6MTYzMTYxNTI0MywianRpIjoiNGY3ZjRkM2EtZjEzOC00YmQyLThlOTMtNzZkMDljMjU2MWZlIiwidHlwZSI6ImFjY2VzcyJ9.nAE8olQOFx8PXCuWZ6qpEdqpkKzKgP1k2d8M25s2U3s');
+    localStorage.setItem('refreshToken', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0X3VzZXJfaWQiLCJleHAiOjE3MzE2MTg4NDMsImlhdCI6MTYzMTYxNTI0MywianRpIjoiOTc0MzAwYjctNTliYi00M2FiLWFiYWMtYmI1MDMzNDMwYTE0IiwidHlwZSI6InJlZnJlc2gifQ.DGdTm_jnHLDHMWUPcMCY6VVCBgW8jMxvvUQKl0uSvSk');
+    
+    // 顯示結果
+    document.getElementById('result').innerHTML = '認證令牌已設置';
+    
+    // 傳送完成消息
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.close();
+      }, 2000);
+    });
+  </script>
+</body>
+</html>
