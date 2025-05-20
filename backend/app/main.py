@@ -13,7 +13,7 @@ from app.core.events import startup_event, shutdown_event
 
 # 創建FastAPI應用實例
 app = FastAPI(
-    title=settings.APP_NAME,
+    title=settings.PROJECT_NAME,
     description="AI文件分析與互動平台API",
     version="1.0.0",
     docs_url="/api/docs",
@@ -24,7 +24,7 @@ app = FastAPI(
 # 設置CORS中間件
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -4,7 +4,8 @@
 import os
 import secrets
 from typing import Optional, Dict, Any, List
-from pydantic import BaseSettings, AnyHttpUrl, validator, PostgresDsn, field_validator, Field
+from pydantic import AnyHttpUrl, validator, AnyUrl, field_validator, Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     API_NAME: str = "AI文件分析API"
     API_DESCRIPTION: str = "API文檔 - AI文件分析與互動平台後端"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
+    VERSION: str = "0.1.0"
     
     # 數據庫設定
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
@@ -39,22 +41,20 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "app_db")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
-    DATABASE_URI: Optional[PostgresDsn] = None
+    DATABASE_URI: Optional[str] = "postgresql://postgres:password@localhost:5432/mydatabase"
     
     @validator("DATABASE_URI", pre=True)
-    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
-        """組裝數據庫連接字符串"""
-        if isinstance(v, str):
-            return v
+    def validate_database_uri(cls, v: Optional[str]) -> str:
+        """
+        驗證並調整數據庫URI
         
-        return PostgresDsn.build(
-            scheme="postgresql+asyncpg",
-            username=values.get("POSTGRES_USER"),
-            password=values.get("POSTGRES_PASSWORD"),
-            host=values.get("POSTGRES_SERVER"),
-            port=values.get("POSTGRES_PORT"),
-            path=f"/{values.get('POSTGRES_DB') or ''}",
-        )
+        在測試環境中(當環境變數TESTING=1時)使用SQLite內存數據庫
+        """
+        if os.getenv("TESTING") == "1":
+            return "sqlite:///:memory:"
+        
+        # 非測試環境保持原URI
+        return v
     
     # JWT設定
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
