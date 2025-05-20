@@ -5,7 +5,7 @@
 import uuid
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Dict
 
 import jwt
 import bcrypt
@@ -439,12 +439,31 @@ async def reset_login_attempts(email: str) -> None:
         logger.error(f"重置登入嘗試次數時發生錯誤: {str(e)}")
 
 
-def _reset_redis_client_for_testing():
+async def decode_access_token(token: str) -> Dict[str, Any]:
     """
-    重置 Redis 客戶端單例，僅用於測試
+    解碼 JWT 訪問令牌
     
-    警告：此函數僅供測試使用，不應在生產代碼中調用
+    Args:
+        token: JWT 訪問令牌字符串
+        
+    Returns:
+        令牌中的載荷（字典）
+        
+    Raises:
+        jwt.PyJWTError: 如果令牌無效或已過期
     """
-    global redis_client, redis_pool
-    redis_client = None
-    redis_pool = None 
+    try:
+        payload = jwt.decode(
+            token, 
+            settings.JWT_SECRET_KEY, 
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        
+        # 確保是訪問令牌
+        if payload.get("type") != "access":
+            raise jwt.PyJWTError("不是有效的訪問令牌")
+        
+        return payload
+    except jwt.PyJWTError as e:
+        logger.error(f"解碼令牌時發生錯誤: {str(e)}")
+        raise 

@@ -7,7 +7,7 @@ import json
 import datetime
 
 from app.db.session import get_db
-from app.core.auth import decode_jwt_token
+from app.core.security import decode_access_token
 from app.models.user import User
 from app.models.file import File
 from app.models.query import Query
@@ -48,7 +48,7 @@ async def authenticate_websocket(websocket: WebSocket) -> Tuple[bool, Optional[U
     
     try:
         # 解析令牌
-        payload = await decode_jwt_token(token)
+        payload = await decode_access_token(token)
         if not payload:
             return False, None, "認證失敗：令牌無效或已過期"
         

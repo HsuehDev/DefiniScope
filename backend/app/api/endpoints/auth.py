@@ -63,7 +63,7 @@ async def register(
     """
     # 檢查電子郵件是否已存在
     statement = select(User).where(User.email == user_data.email)
-    results = await db.exec(statement)
+    results = await db.execute(statement)
     existing_user = results.first()
     
     if existing_user:
@@ -123,7 +123,7 @@ async def login(
     """
     # 查詢用戶
     statement = select(User).where(User.email == form_data.username)
-    results = await db.exec(statement)
+    results = await db.execute(statement)
     user = results.first()
     
     # 驗證用戶和密碼
@@ -252,4 +252,29 @@ async def logout(
     """
     # TODO: 將用戶的refresh token加入Redis黑名單
     
-    return {"detail": "成功登出"} 
+    return {"detail": "成功登出"}
+
+
+@router.get(
+    "/protected",
+    status_code=status.HTTP_200_OK,
+    summary="受保護的路由",
+    description="僅用於測試身份驗證"
+)
+async def protected_route(
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    受保護的路由，僅登入用戶可訪問
+    
+    Args:
+        current_user: 當前認證的用戶
+        
+    Returns:
+        dict: 包含用戶信息的字典
+    """
+    return {
+        "user_uuid": current_user.user_uuid,
+        "email": current_user.email,
+        "message": "您已通過身份驗證"
+    } 
