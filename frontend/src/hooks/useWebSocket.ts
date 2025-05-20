@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebSocketEvent } from '../components/chat/types';
+import { getAccessToken } from '../services/auth/authService';
 
 interface WebSocketHookOptions {
   url: string;
@@ -42,7 +43,36 @@ export const useWebSocket = ({
     
     try {
       setConnecting(true);
-      wsRef.current = new WebSocket(url);
+      
+      // 獲取認證令牌並添加到URL
+      const token = getAccessToken();
+      
+      // 修正 WebSocket URL 格式
+      let fullUrl = url;
+      
+      // 確保URL以"ws:"或"wss:"開頭
+      if (!url.startsWith('ws:') && !url.startsWith('wss:')) {
+        // 確定當前協議
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // 確定主機地址
+        const host = window.location.host;
+        
+        // 如果是相對路徑，轉換為絕對路徑
+        if (url.startsWith('/')) {
+          fullUrl = `${protocol}//${host}${url}`;
+        } else {
+          fullUrl = `${protocol}//${host}/${url}`;
+        }
+      }
+      
+      // 添加認證令牌
+      const wsUrlWithToken = token 
+        ? `${fullUrl}${fullUrl.includes('?') ? '&' : '?'}token=${token}` 
+        : fullUrl;
+      
+      console.log('正在連接WebSocket:', wsUrlWithToken);
+      
+      wsRef.current = new WebSocket(wsUrlWithToken);
       
       wsRef.current.onopen = () => {
         setConnected(true);
@@ -50,6 +80,7 @@ export const useWebSocket = ({
         setError(null);
         reconnectAttemptsRef.current = 0;
         if (onOpen) onOpen();
+        console.log('WebSocket連接成功');
       };
       
       wsRef.current.onmessage = (event) => {
@@ -64,11 +95,13 @@ export const useWebSocket = ({
       wsRef.current.onclose = () => {
         setConnected(false);
         if (onClose) onClose();
+        console.log('WebSocket連接關閉');
         
         // 重新連接邏輯
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectIntervalRef.current = window.setTimeout(() => {
             reconnectAttemptsRef.current += 1;
+            console.log(`嘗試重新連接 (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
             connect();
           }, reconnectInterval);
         }
@@ -77,11 +110,13 @@ export const useWebSocket = ({
       wsRef.current.onerror = (err) => {
         setError(err);
         setConnecting(false);
+        console.error('WebSocket連接錯誤:', err);
         if (onError) onError(err);
       };
     } catch (err) {
       setConnecting(false);
       setError(err as Event);
+      console.error('WebSocket連接例外:', err);
       if (onError) onError(err as Event);
     }
   }, [url, onOpen, onMessage, onClose, onError, reconnectInterval, maxReconnectAttempts]);

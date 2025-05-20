@@ -27,7 +27,11 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "react-dev": "BROWSER=none PORT=3000 react-scripts start",
+    "react-build": "react-scripts build",
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:file": "vitest --run",
@@ -67,7 +71,7 @@
     "@types/react": "^19.1.4",
     "@types/react-dom": "^19.1.5",
     "@types/react-pdf": "^6.2.0",
-    "@vitejs/plugin-react": "^4.0.0",
+    "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-c8": "^0.32.0",
     "@vitest/ui": "^0.32.0",
     "autoprefixer": "^10.4.13",
@@ -76,6 +80,7 @@
     "msw": "^1.2.2",
     "postcss": "^8.4.21",
     "tailwindcss": "^3.3.2",
+    "vite": "^4.5.14",
     "vitest": "^0.32.4"
   },
   "proxy": "http://localhost:8000"

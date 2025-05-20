@@ -3,16 +3,15 @@
  * 提供登入、註冊、登出和令牌管理功能
  */
 
-import {
-  LoginRequest,
-  LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
-  RefreshTokenRequest,
-  RefreshTokenResponse,
-  DecodedToken
-} from '../../types/auth';
 import { jwtDecode } from 'jwt-decode';
+
+interface DecodedToken {
+  sub: string;    // 用戶UUID
+  exp: number;    // 到期時間
+  iat: number;    // 發行時間
+  type: string;   // 令牌類型
+  jti: string;    // JWT ID
+}
 
 const API_BASE_URL = '/api';
 
@@ -25,25 +24,25 @@ export const saveTokens = (accessToken: string, refreshToken: string): void => {
 };
 
 /**
- * 從本地儲存獲取訪問令牌
+ * 清除所有令牌
+ */
+export const clearTokens = (): void => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+};
+
+/**
+ * 獲取訪問令牌
  */
 export const getAccessToken = (): string | null => {
   return localStorage.getItem('accessToken');
 };
 
 /**
- * 從本地儲存獲取刷新令牌
+ * 獲取刷新令牌
  */
 export const getRefreshToken = (): string | null => {
   return localStorage.getItem('refreshToken');
-};
-
-/**
- * 清除本地儲存的令牌
- */
-export const clearTokens = (): void => {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
 };
 
 /**
@@ -70,7 +69,7 @@ export const isTokenExpired = (token: string): boolean => {
 /**
  * 用戶登入
  */
-export const login = async (credentials: LoginRequest): Promise<LoginResponse> => {
+export const login = async (credentials: { email: string; password: string }): Promise<any> => {
   const formData = new FormData();
   formData.append('username', credentials.email);
   formData.append('password', credentials.password);
@@ -91,33 +90,12 @@ export const login = async (credentials: LoginRequest): Promise<LoginResponse> =
 };
 
 /**
- * 用戶註冊
- */
-export const register = async (userData: RegisterRequest): Promise<RegisterResponse> => {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(userData),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || '註冊失敗');
-  }
-
-  return response.json();
-};
-
-/**
- * 刷新訪問令牌
+ * 刷新令牌
  */
 export const refreshToken = async (): Promise<string> => {
-  const refreshToken = getRefreshToken();
-  
-  if (!refreshToken) {
-    throw new Error('沒有刷新令牌可用');
+  const refresh = getRefreshToken();
+  if (!refresh) {
+    throw new Error('沒有可用的刷新令牌');
   }
 
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -125,7 +103,7 @@ export const refreshToken = async (): Promise<string> => {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    body: JSON.stringify({ refresh_token: refresh }),
   });
 
   if (!response.ok) {
@@ -133,7 +111,7 @@ export const refreshToken = async (): Promise<string> => {
     throw new Error('刷新令牌失敗');
   }
 
-  const data: RefreshTokenResponse = await response.json();
+  const data = await response.json();
   localStorage.setItem('accessToken', data.access_token);
   return data.access_token;
 };
@@ -141,22 +119,10 @@ export const refreshToken = async (): Promise<string> => {
 /**
  * 用戶登出
  */
-export const logout = async (): Promise<void> => {
-  try {
-    const token = getAccessToken();
-    if (token) {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-    }
-  } catch (error) {
-    console.error('登出請求失敗:', error);
-  } finally {
-    clearTokens();
-  }
+export const logout = (): void => {
+  clearTokens();
+  // 重定向到登入頁面或首頁
+  window.location.href = '/login';
 };
 
 /**

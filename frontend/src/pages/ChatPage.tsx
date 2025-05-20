@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChatContainer } from '../components/chat';
-import { useWebSocket } from '../hooks/useWebsocket';
+import { useWebSocket } from '../hooks/useWebSocket';
 import { 
   Conversation, 
   Reference, 
@@ -128,8 +128,8 @@ const ChatPage: React.FC = () => {
   // 建立WebSocket連接
   const { connected } = useWebSocket({
     url: currentQueryUuid 
-      ? `ws://${window.location.host}/ws/chat/${currentQueryUuid}`
-      : `ws://${window.location.host}/ws/empty`,
+      ? `/ws/chat/${currentQueryUuid}`
+      : `/ws/empty`,
     onMessage: handleWebSocketMessage,
     onOpen: () => console.log('WebSocket 連接已建立'),
     onClose: () => console.log('WebSocket 連接已關閉'),

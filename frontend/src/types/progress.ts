@@ -8,12 +8,10 @@ export type DefiningType = 'cd' | 'od' | 'none';
 
 // 句子數據
 export interface SentenceData {
-  sentence_uuid?: string;
-  file_uuid?: string;
-  sentence: string;
-  page: number;
-  defining_type?: DefiningType;
-  reason?: string;
+  sentence_uuid: string;
+  content: string;
+  page_number?: number;
+  [key: string]: any;
 }
 
 // 檔案處理相關事件類型
@@ -28,17 +26,15 @@ export type FileProcessingEvent =
 
 // 檔案處理進度
 export interface FileProcessingProgress {
-  event?: FileProcessingEvent;
   file_uuid: string;
-  progress: number;  // 0-100
-  current?: number;
-  total?: number;
-  status: FileProcessingStatus;
+  progress: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   currentStep: string;
-  errorMessage?: string;
-  timestamp?: string;
   extractedSentences: SentenceData[];
   classifiedSentences: SentenceData[];
+  current?: number;
+  total?: number;
+  errorMessage?: string;
 }
 
 // 查詢處理相關事件類型
@@ -55,23 +51,19 @@ export type QueryProcessingEvent =
 // 引用的句子
 export interface ReferencedSentence {
   sentence_uuid: string;
-  file_uuid: string;
-  original_name: string;
-  sentence: string;
-  page: number;
-  defining_type: DefiningType;
+  content: string;
+  file_uuid?: string;
+  page_number?: number;
   relevance_score?: number;
+  [key: string]: any;
 }
 
 // 查詢處理進度
 export interface QueryProcessingProgress {
-  event?: QueryProcessingEvent;
   query_uuid: string;
-  progress: number;  // 0-100
-  status: FileProcessingStatus;
+  progress: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   currentStep: string;
-  errorMessage?: string;
-  timestamp?: string;
   keywords: string[];
   foundDefinitions: {
     cd: number;
@@ -79,10 +71,42 @@ export interface QueryProcessingProgress {
   };
   searchResults: Record<string, ReferencedSentence[]>;
   referencedSentences: ReferencedSentence[];
+  errorMessage?: string;
 }
 
-// WebSocket消息
-export interface WebSocketMessage<T> {
+// WebSocket 進度追踪相關類型
+
+export interface WebSocketMessage<T = any> {
   event: string;
-  data: T;
+  data?: T;
+  timestamp?: string;
+}
+
+// 文件處理進度
+export interface FileProcessingProgress {
+  file_uuid: string;
+  progress: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  currentStep: string;
+  extractedSentences: SentenceData[];
+  classifiedSentences: SentenceData[];
+  current?: number;
+  total?: number;
+  errorMessage?: string;
+}
+
+// 查詢處理進度
+export interface QueryProcessingProgress {
+  query_uuid: string;
+  progress: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  currentStep: string;
+  keywords: string[];
+  foundDefinitions: {
+    cd: number;
+    od: number;
+  };
+  searchResults: Record<string, ReferencedSentence[]>;
+  referencedSentences: ReferencedSentence[];
+  errorMessage?: string;
 } 

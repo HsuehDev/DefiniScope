@@ -2,10 +2,10 @@
 export interface Reference {
   sentence_uuid: string;
   file_uuid: string;
-  original_name: string;
-  sentence: string;
-  page: number;
-  defining_type: 'cd' | 'od' | 'none';
+  content: string;
+  page_number: number;
+  relevance_score: number;
+  file_name: string;
 }
 
 // 聊天消息類型
@@ -23,7 +23,6 @@ export interface Conversation {
   title: string;
   created_at: string;
   updated_at: string;
-  last_message_at?: string;
   messages: ChatMessage[];
 }
 
@@ -59,10 +58,10 @@ export interface ReferencedSentencesEvent {
 }
 
 // WebSocket事件類型聯合
-export type WebSocketEvent = 
-  | QueryProgressEvent 
-  | DatabaseSearchResultEvent 
-  | ReferencedSentencesEvent;
+export interface WebSocketEvent {
+  event: string;
+  [key: string]: any;
+}
 
 // 聊天輸入參數
 export interface ChatInputProps {

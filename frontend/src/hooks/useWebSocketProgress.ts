@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { FileProcessingProgress, QueryProcessingProgress, WebSocketMessage } from '../types/progress';
+import { getAccessToken } from '../services/auth/authService';
+import { useWebSocket } from './useWebSocket';
+import { QueryProcessingEvent } from '../types/progress';
 
 // 通用的WebSocket進度鉤子
-export function useWebSocketProgress<T>(
+export function useWebSocketBase<T>(
   url: string, 
   initialState: T,
   onMessage: (message: any) => void
@@ -29,7 +32,11 @@ export function useWebSocketProgress<T>(
     if (!url || !navigator.onLine) return;
 
     try {
-      wsRef.current = new WebSocket(url);
+      // 獲取認證令牌並添加到URL
+      const token = getAccessToken();
+      const wsUrlWithToken = token ? `${url}?token=${token}` : url;
+      
+      wsRef.current = new WebSocket(wsUrlWithToken);
 
       wsRef.current.onopen = () => {
         setIsConnected(true);
@@ -133,8 +140,8 @@ export function useWebSocketProgress<T>(
 
 // 獲取WebSocket基礎URL
 const getWebSocketBaseUrl = (): string => {
-  // 嘗試從環境變量獲取，如果不存在則使用預設值
-  return (window as any).env?.REACT_APP_WS_BASE_URL || 'ws://localhost:8000';
+  // 使用相對路徑，讓代理處理轉發
+  return '';
 };
 
 // 文件處理進度鉤子
@@ -220,7 +227,7 @@ export function useFileProcessingWebSocket(fileUuid: string | null) {
     }
   }, []);
 
-  const { isConnected, error, isFallbackMode, sendMessage } = useWebSocketProgress<FileProcessingProgress>(
+  const { isConnected, error, isFallbackMode, sendMessage } = useWebSocketBase<FileProcessingProgress>(
     wsUrl,
     progress,
     handleMessage
@@ -329,11 +336,119 @@ export function useQueryProcessingWebSocket(queryUuid: string | null) {
     }
   }, []);
 
-  const { isConnected, error, isFallbackMode, sendMessage } = useWebSocketProgress<QueryProcessingProgress>(
+  const { isConnected, error, isFallbackMode, sendMessage } = useWebSocketBase<QueryProcessingProgress>(
     wsUrl,
     progress,
     handleMessage
   );
 
   return { progress, isConnected, error, isFallbackMode, sendMessage };
-} 
+}
+
+interface UseWebSocketProgressOptions {
+  queryUuid?: string | null;
+  conversationId?: string;
+}
+
+interface UseWebSocketProgressResult {
+  isProcessing: boolean;
+  progress: number | undefined;
+  currentStep: string | undefined;
+  referencedSentences: any[];
+  error: Event | null;
+}
+
+export const useWebSocketProgress = ({ 
+  queryUuid, 
+  conversationId 
+}: UseWebSocketProgressOptions): UseWebSocketProgressResult => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState<number | undefined>(undefined);
+  const [currentStep, setCurrentStep] = useState<string | undefined>(undefined);
+  const [referencedSentences, setReferencedSentences] = useState<any[]>([]);
+
+  // 構造WebSocket URL
+  const wsUrl = queryUuid 
+    ? `/ws/chat/${queryUuid}` 
+    : `/ws/empty`;
+
+  // 處理WebSocket消息
+  const handleWebSocketMessage = useCallback((event: any) => {
+    console.log('進度WebSocket消息:', event);
+
+    switch (event.event) {
+      case 'query_processing_started':
+        setIsProcessing(true);
+        setCurrentStep('開始處理您的問題...');
+        break;
+
+      case 'keyword_extraction_completed':
+        setCurrentStep(`已提取關鍵詞: ${event.keywords?.join(', ')}`);
+        break;
+
+      case 'database_search_progress':
+        setProgress(event.progress);
+        setCurrentStep(event.current_step);
+        break;
+
+      case 'database_search_result':
+        setCurrentStep(`找到與 "${event.keyword}" 相關的句子: ${event.found_sentences.length} 條`);
+        break;
+
+      case 'answer_generation_started':
+        setCurrentStep('正在生成答案...');
+        break;
+
+      case 'referenced_sentences':
+        setReferencedSentences(event.referenced_sentences);
+        setCurrentStep('正在基於這些句子生成答案...');
+        break;
+
+      case 'query_completed':
+        setIsProcessing(false);
+        setProgress(undefined);
+        setCurrentStep(undefined);
+        setReferencedSentences([]);
+        break;
+
+      case 'query_failed':
+        setIsProcessing(false);
+        setProgress(undefined);
+        setCurrentStep('處理問題時發生錯誤，請稍後再試');
+        setTimeout(() => {
+          setCurrentStep(undefined);
+        }, 3000);
+        break;
+
+      default:
+        break;
+    }
+  }, []);
+
+  // 使用基礎WebSocket鉤子
+  const { error } = useWebSocket({
+    url: wsUrl,
+    onMessage: handleWebSocketMessage,
+    onOpen: () => console.log('進度WebSocket連接已建立', wsUrl),
+    onClose: () => console.log('進度WebSocket連接已關閉'),
+    onError: (error) => console.error('進度WebSocket錯誤:', error)
+  });
+
+  // 當queryUuid變更時重置狀態
+  useEffect(() => {
+    if (!queryUuid) {
+      setIsProcessing(false);
+      setProgress(undefined);
+      setCurrentStep(undefined);
+      setReferencedSentences([]);
+    }
+  }, [queryUuid]);
+
+  return {
+    isProcessing,
+    progress,
+    currentStep,
+    referencedSentences,
+    error
+  };
+}; 
