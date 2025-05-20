@@ -1335,3 +1335,299 @@ cd frontend && npx vitest run src/__tests__/auth/ --no-coverage
 - 運行時間：977ms
 
 總體來說，認證功能的測試已經全面覆蓋並且成功通過，使用的測試框架為 Vitest。已解決的主要問題包括 JWT 解碼和 PrivateRoute 選擇器問題。仍然存在兩個需要在後續版本中解決的問題：React act 警告和 AuthContext 中的未捕獲錯誤。
+
+# 待解決的測試問題
+
+本文檔記錄了在執行UI布局與導航測試時遇到的問題和解決方向。
+
+## 1. 類型錯誤與斷言問題
+
+### 1.1 問題描述
+
+在執行`MainLayout.test.tsx`和`ThreeColumnLayout.test.tsx`測試時，遇到了與React Testing Library斷言相關的類型錯誤：
+
+```
+Property 'toBeInTheDocument' does not exist on type 'Assertion<HTMLElement>'.
+Property 'toHaveClass' does not exist on type 'Assertion<HTMLElement>'.
+Property 'toHaveAttribute' does not exist on type 'Assertion<HTMLElement>'.
+```
+
+這些錯誤表明TypeScript無法識別React Testing Library提供的自定義匹配器。
+
+### 1.2 根本原因分析
+
+1. 雖然在`setupTests.ts`中正確引入並設置了`@testing-library/jest-dom/matchers`：
+   ```typescript
+   import * as matchers from '@testing-library/jest-dom/matchers';
+   expect.extend(matchers);
+   ```
+
+2. 但TypeScript無法識別這些擴展的匹配器類型，因為缺少對應的類型定義擴展。
+
+3. 項目使用`@testing-library/jest-dom": "^5.17.0"`，但當前的類型聲明可能不完整或與Vitest不兼容。
+
+### 1.3 解決方向
+
+1. **添加global.d.ts文件**：
+   創建一個包含自定義匹配器類型定義的全局聲明文件：
+   ```typescript
+   // src/types/global.d.ts
+   import '@testing-library/jest-dom';
+   ```
+
+2. **更新依賴版本**：
+   嘗試更新`@testing-library/jest-dom`到最新版本，檢查是否有更好的類型支持：
+   ```bash
+   npm install @testing-library/jest-dom@latest --save-dev
+   ```
+
+3. **使用TypeScript擴展模塊**：
+   手動擴展Vitest的斷言接口：
+   ```typescript
+   // src/types/vitest.d.ts
+   import { Assertion, AsymmetricMatchersContaining } from 'vitest';
+
+   interface CustomMatchers<R = unknown> {
+     toBeInTheDocument(): R;
+     toHaveClass(className: string): R;
+     toHaveAttribute(attr: string, value?: string): R;
+     // 其他自定義匹配器...
+   }
+
+   declare module 'vitest' {
+     interface Assertion<T = any> extends CustomMatchers<T> {}
+     interface AsymmetricMatchersContaining extends CustomMatchers {}
+   }
+   ```
+
+## 2. 元素選擇問題
+
+### 2.1 問題描述
+
+在`ThreeColumnLayout.test.tsx`中，測試無法通過以下選擇器找到元素：
+
+1. SVG路徑選擇：
+   ```typescript
+   screen.getByText(/11 19l-7-7 7-7m8 14l-7-7 7-7/i)
+   screen.getByText(/13 5l7 7-7 7M5 5l7 7-7 7/i)
+   ```
+
+2. 多元素匹配問題：
+   ```
+   Found multiple elements with the text: /(檔案管理|智能對話|參考資訊)/i
+   Found multiple elements with the text: 自訂左側標題
+   ```
+
+### 2.2 解決方向
+
+1. **使用更精確的選擇器**：
+   不要直接選擇SVG路徑，改用data-testid屬性：
+   ```jsx
+   // 組件中
+   <button data-testid="left-panel-toggle">...</button>
+   
+   // 測試中
+   const leftPanelToggleBtn = screen.getByTestId('left-panel-toggle');
+   ```
+
+2. **處理多元素匹配**：
+   - 使用更具體的選擇器，結合角色或父元素：
+     ```typescript
+     screen.getByRole('button', { name: '檔案管理' })
+     ```
+   - 或使用getAllBy*後過濾：
+     ```typescript
+     const buttons = screen.getAllByText(/(檔案管理|智能對話|參考資訊)/i);
+     const panelSelectorButton = buttons.find(btn => btn.closest('div[class*="md:hidden"]'));
+     ```
+
+## 3. 響應式測試問題
+
+### 3.1 問題描述
+
+在測試小螢幕響應式行為時，雖然使用了`window.innerWidth`模擬，但組件可能沒有正確響應：
+
+```typescript
+// 模擬小螢幕寬度 (小於768px)
+setWindowInnerWidth(500);
+```
+
+### 3.2 解決方向
+
+1. **觸發resize事件**：
+   設置innerWidth後手動觸發window的resize事件：
+   ```typescript
+   setWindowInnerWidth(500);
+   window.dispatchEvent(new Event('resize'));
+   ```
+
+2. **使用媒體查詢模擬**：
+   ```typescript
+   // 模擬媒體查詢結果
+   window.matchMedia = vi.fn().mockImplementation(query => ({
+     matches: query.includes('max-width: 768px'),
+     media: query,
+     onchange: null,
+     addListener: vi.fn(),
+     removeListener: vi.fn()
+   }));
+   ```
+
+3. **使用act包裝狀態更新**：
+   ```typescript
+   import { act } from '@testing-library/react';
+   
+   await act(async () => {
+     setWindowInnerWidth(500);
+     window.dispatchEvent(new Event('resize'));
+   });
+   ```
+
+## 4. 後續行動計劃
+
+1. **優先解決類型錯誤**：
+   - 創建必要的類型定義文件
+   - 確保正確擴展Vitest斷言
+
+2. **重構測試選擇器**：
+   - 在組件中添加data-testid屬性
+   - 使用更可靠的選擇方法，避免依賴SVG路徑或文本
+
+3. **改進響應式測試**：
+   - 完善模擬屏幕尺寸的方法
+   - 確保組件正確響應尺寸變化
+
+4. **設置CI/CD檢查**：
+   - 添加自動化測試流程
+   - 設置類型檢查步驟
+
+## 5. 其他觀察到的測試問題
+
+執行整個測試套件時還發現了其他問題：
+
+1. React act警告：
+   ```
+   An update to %s inside a test was not wrapped in act(...)
+   ```
+
+2. 未處理的Promise拒絕：
+   ```
+   Error: 帳號或密碼錯誤
+   ```
+
+3. 某些組件的文本匹配問題：
+   ```
+   Unable to find an element with the text: WebSocket連接失敗
+   ```
+
+這些問題也需要在全面優化測試套件時一併處理。
+
+## 6. 測試執行結果
+
+在執行測試命令後，我們發現：
+
+1. **MainLayout.test.tsx** 的測試可以通過
+2. **ThreeColumnLayout.test.tsx** 的測試仍然有4個失敗，主要原因是：
+   - 選擇器問題：SVG路徑選擇器不起作用
+   - 多元素匹配：文本選擇器找到多個元素
+
+### 我們做了哪些嘗試
+
+1. 創建了兩個類型定義文件：
+   - `src/types/vitest.d.ts` - 擴展Vitest斷言接口
+   - `src/types/global.d.ts` - 引入React Testing Library類型
+
+2. 修改了測試選擇方法：
+   - 使用DOM查詢代替文本匹配
+   - 使用更精確的選擇器和父元素查詢
+
+3. 改進了模擬屏幕尺寸的方法：
+   - 在設置innerWidth後主動觸發resize事件
+
+### 下一步行動
+
+1. **組件增強**:
+   - 在SVG按鈕上添加data-testid屬性
+   ```jsx
+   <button data-testid="left-panel-toggle">
+     <svg>...</svg>
+   </button>
+   ```
+
+2. **測試方法更新**:
+   - 徹底重寫ThreeColumnLayout.test.tsx，使用新的選擇器方法
+   - 使用querySelector和data-testid代替文本選擇器
+
+3. **工具鏈更新**:
+   - 考慮升級@testing-library/react和@testing-library/jest-dom
+   - 確認Vitest配置是否正確引入了jest-dom
+
+4. **測試環境隔離**:
+   - 確保每個測試都在隔離環境中運行，避免狀態污染
+   - 重置所有mock和環境變量
+
+## 7. 最終發現與總結
+
+經過深入分析和測試，我們確認了項目中已存在部分解決方案。特別是發現了以下關鍵文件：
+
+1. **src/types/testing.d.ts**：
+   - 已經包含了對jest-dom的擴展類型定義
+   - 使用了`namespace Vi`的方式為Vitest提供擴展
+   ```typescript
+   declare global {
+     namespace Vi {
+       interface JestAssertion {
+         toBeInTheDocument(): void;
+         toHaveClass(...classNames: string[]): void;
+         // 更多斷言...
+       }
+     }
+   }
+   ```
+
+2. **測試環境配置**：
+   - MainLayout.test.tsx的測試可以正常通過，表明類型擴展功能本身是生效的
+   - ThreeColumnLayout.test.tsx的測試失敗是由選擇器問題引起的，而非類型問題
+
+### 真正的問題所在
+
+1. **文件選擇問題**：
+   - 測試文件仍使用原始的測試文件，而我們的修改尚未被應用
+   - 需要確認修改的文件是否正確保存和應用
+
+2. **選擇器策略不佳**：
+   - 依賴SVG路徑文本和通用文本進行元素選擇是不穩定的
+   - 需要重構組件，添加適當的`data-testid`屬性
+
+### 最終建議
+
+1. **修改源組件**：
+   - 在ThreeColumnLayout組件中的關鍵元素添加data-testid屬性
+   ```jsx
+   // 左側面板折疊按鈕
+   <button data-testid="left-panel-toggle">...</button>
+   
+   // 右側面板折疊按鈕
+   <button data-testid="right-panel-toggle">...</button>
+   
+   // 移動版面板選擇器
+   <div data-testid="mobile-panel-selector">...</div>
+   ```
+
+2. **採用最佳實踐的測試方法**：
+   - 優先使用data-testid選擇器
+   - 其次使用role + name選擇器
+   - 避免使用文本內容或CSS類名作為主要選擇方式
+
+3. **建立完整測試策略**：
+   - 單元測試：測試獨立組件功能
+   - 集成測試：測試組件間交互
+   - 端到端測試：測試用戶流程和響應式行為
+   - 視覺回歸測試：確保UI外觀一致
+
+4. **持續集成**：
+   - 設置GitHub Actions或其他CI服務
+   - 自動運行測試並報告結果
+   - 包含TypeScript類型檢查
+
+通過以上改進，可以提高測試的穩定性和可維護性，確保UI布局和導航功能在不同環境中正常工作。
