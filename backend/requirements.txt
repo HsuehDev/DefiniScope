@@ -23,6 +23,7 @@ python-multipart>=0.0.6,<0.0.7
 
 # 物件儲存
 minio>=7.1.15,<8.0.0
+boto3>=1.28.5,<2.0.0
 
 # Redis & Celery
 redis>=5.0.0,<6.0.0

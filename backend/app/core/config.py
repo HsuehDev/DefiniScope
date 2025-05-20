@@ -1,63 +1,118 @@
 """
-全局配置設定
+全局配置模塊，用於設置和管理系統配置參數
 """
 import os
-import datetime
-from typing import List, Union, Optional
-from pydantic import BaseSettings, validator, PostgresDsn, AnyHttpUrl
+import secrets
+from typing import Optional, Dict, Any, List
+from pydantic import BaseSettings, AnyHttpUrl, validator, PostgresDsn, field_validator, Field
 
 
 class Settings(BaseSettings):
-    """
-    應用全局設定，從環境變數加載
-    """
-    # 應用基本設定
-    APP_NAME: str = "AI文件分析與互動平台"
-    API_PREFIX: str = "/api"
-    SERVER_START_TIME: str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    """全局配置類"""
+    
+    # API設定
+    API_V1_STR: str = "/api"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
     
     # 跨域設定
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "https://localhost:3000"]
+    # 允許所有域名的跨域請求
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
+    
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    def assemble_cors_origins(cls, v: str | List[str]) -> List[str] | str:
+        """組裝CORS來源"""
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
+    
+    # 項目設定
+    PROJECT_NAME: str = "AI文件分析與互動平台"
+    API_NAME: str = "AI文件分析API"
+    API_DESCRIPTION: str = "API文檔 - AI文件分析與互動平台後端"
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     
     # 數據庫設定
-    DATABASE_URL: PostgresDsn = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/app")
+    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "app_db")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+    DATABASE_URI: Optional[PostgresDsn] = None
     
-    # MinIO 設定
-    MINIO_URL: str = os.getenv("MINIO_URL", "localhost:9000")
-    MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioaccess")
-    MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "miniosecret")
-    MINIO_SECURE: bool = False  # 是否使用HTTPS連接MinIO
+    @validator("DATABASE_URI", pre=True)
+    def assemble_db_connection(cls, v: Optional[str], values: Dict[str, Any]) -> Any:
+        """組裝數據庫連接字符串"""
+        if isinstance(v, str):
+            return v
+        
+        return PostgresDsn.build(
+            scheme="postgresql+asyncpg",
+            username=values.get("POSTGRES_USER"),
+            password=values.get("POSTGRES_PASSWORD"),
+            host=values.get("POSTGRES_SERVER"),
+            port=values.get("POSTGRES_PORT"),
+            path=f"/{values.get('POSTGRES_DB') or ''}",
+        )
     
-    # Redis 設定
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # JWT設定
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", secrets.token_urlsafe(32))
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))  # 30分鐘
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7天
     
-    # 外部API設定
-    PDF_SPLITTER_URL: str = os.getenv("PDF_SPLITTER_URL", "http://localhost:8000")
-    N8N_API_URL: str = os.getenv("N8N_API_URL", "http://n8n-api:5678")
+    # Redis設定
+    REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT: int = int(os.getenv("REDIS_PORT", "6379"))
+    REDIS_DB: int = int(os.getenv("REDIS_DB", "0"))
+    REDIS_PASSWORD: Optional[str] = os.getenv("REDIS_PASSWORD")
+    REDIS_URL: str = os.getenv("REDIS_URL", f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
+    
+    # MinIO設定
+    MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
+    MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+    MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+    MINIO_SECURE: bool = os.getenv("MINIO_SECURE", "False").lower() == "true"
+    MINIO_LARGE_FILE_THRESHOLD: int = int(os.getenv("MINIO_LARGE_FILE_THRESHOLD", str(100 * 1024 * 1024)))  # 默認100MB
+    
+    # 默認存儲桶設定
+    DEFAULT_BUCKET_DOCUMENTS: str = os.getenv("DEFAULT_BUCKET_DOCUMENTS", "documents")
+    DEFAULT_BUCKET_IMAGES: str = os.getenv("DEFAULT_BUCKET_IMAGES", "images")
+    DEFAULT_BUCKET_TEMP: str = os.getenv("DEFAULT_BUCKET_TEMP", "temp")
     
     # 文件上傳設定
-    UPLOAD_TIMEOUT_MINUTES: int = int(os.getenv("UPLOAD_TIMEOUT_MINUTES", "10"))
-    MAX_FILE_SIZE_MB: int = 10  # 最大檔案大小
+    MAX_UPLOAD_SIZE: int = int(os.getenv("MAX_UPLOAD_SIZE", str(50 * 1024 * 1024)))  # 默認50MB
+    ALLOWED_DOCUMENT_EXTENSIONS: List[str] = [
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", 
+        ".ppt", ".pptx", ".txt", ".md", ".json", ".csv"
+    ]
+    ALLOWED_IMAGE_EXTENSIONS: List[str] = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"]
     
-    # 並發控制
-    MAX_WORKERS: int = int(os.getenv("MAX_WORKERS", "8"))
-    CONCURRENCY_LIMIT: int = int(os.getenv("CONCURRENCY_LIMIT", "60"))
+    # 登入安全設定
+    MAX_LOGIN_ATTEMPTS: int = int(os.getenv("MAX_LOGIN_ATTEMPTS", "5"))
+    LOGIN_ATTEMPTS_WINDOW: int = int(os.getenv("LOGIN_ATTEMPTS_WINDOW", "300"))  # 5分鐘
+    ACCOUNT_LOCKOUT_TIME: int = int(os.getenv("ACCOUNT_LOCKOUT_TIME", "900"))  # 15分鐘
     
-    # JWT認證
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "secret_key_for_jwt_please_change_in_production")
-    JWT_ALGORITHM: str = "HS256"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    # n8n工作流設定
+    N8N_BASE_URL: str = os.getenv("N8N_BASE_URL", "http://localhost:5678/webhook/")
+    N8N_PROCESS_DOCUMENT_WORKFLOW_ID: str = os.getenv("N8N_PROCESS_DOCUMENT_WORKFLOW_ID", "")
+    N8N_API_KEY: Optional[str] = os.getenv("N8N_API_KEY")
     
-    # Celery設定
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", REDIS_URL)
-    CELERY_BACKEND_URL: str = os.getenv("CELERY_BACKEND_URL", REDIS_URL)
-    CELERY_CONCURRENCY: int = int(os.getenv("CELERY_CONCURRENCY", "8"))
+    # 其他設定
+    DEFAULT_ADMIN_EMAIL: str = os.getenv("DEFAULT_ADMIN_EMAIL", "admin@example.com")
+    DEFAULT_ADMIN_PASSWORD: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123")
     
     class Config:
+        """配置元數據"""
         case_sensitive = True
         env_file = ".env"
 
 
-# 建立全局settings實例
-settings = Settings() 
+# 創建全局設定實例
+settings = Settings()
+
+# 環境變量模式檢查
+is_production = settings.ENVIRONMENT.lower() == "production"
+is_development = settings.ENVIRONMENT.lower() == "development"
+is_testing = settings.ENVIRONMENT.lower() == "testing" 
