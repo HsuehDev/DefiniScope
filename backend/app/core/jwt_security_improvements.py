@@ -1,6 +1,6 @@
 """
-JWT安全管理模組
-提供令牌創建、驗證和管理功能
+JWT安全管理模組改進建議
+針對審計中發現的問題提供改進實現
 """
 import uuid
 import logging
@@ -15,7 +15,7 @@ import bcrypt
 from fastapi import HTTPException, status
 
 # 使用應用配置
-from app.core.config import settings
+from app.core.mock_config import settings
 
 logger = logging.getLogger(__name__)
 
