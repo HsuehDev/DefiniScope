@@ -846,4 +846,33 @@ class MinioClient:
 
 
 # 創建全局單例
-minio_client = MinioClient() 
+minio_client = MinioClient()
+
+# 獲取 MinIO 客戶端的便捷函數
+def get_minio_client() -> MinioClient:
+    """
+    獲取 MinIO 客戶端實例
+
+    Returns:
+        MinioClient: MinIO 客戶端實例
+    """
+    return MinioClient()
+
+# 下載文件的便捷函數
+def download_file(object_name: str, output_path: str, bucket_name: str = None) -> str:
+    """
+    下載文件的便捷函數
+    
+    Args:
+        object_name: 對象名稱/鍵
+        output_path: 輸出文件路徑
+        bucket_name: 存儲桶名稱，為 None 時使用默認桶
+        
+    Returns:
+        str: 下載的本地文件路徑
+        
+    Raises:
+        StorageException: 如果下載失敗
+    """
+    client = get_minio_client()
+    return client.download_file(object_name, output_path, bucket_name) 

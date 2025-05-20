@@ -4,8 +4,8 @@
 import os
 import secrets
 from typing import Optional, Dict, Any, List
-from pydantic import AnyHttpUrl, validator, AnyUrl, field_validator, Field
-from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, validator, AnyUrl, Field
+from pydantic import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # 允許所有域名的跨域請求
     BACKEND_CORS_ORIGINS: List[str] = ["*"]
     
-    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: str | List[str]) -> List[str] | str:
         """組裝CORS來源"""
         if isinstance(v, str) and not v.startswith("["):
