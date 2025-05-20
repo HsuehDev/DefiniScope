@@ -2,7 +2,7 @@ import { PlaywrightTestConfig, devices } from '@playwright/test';
 
 const config: PlaywrightTestConfig = {
   // 基本配置
-  testDir: './src/__tests__/e2e',
+  testDir: './e2e',
   timeout: 30000, // 每個測試的超時時間（毫秒）
   fullyParallel: true, // 是否併行執行測試
   forbidOnly: !!process.env.CI, // 在CI環境中禁止僅運行特定測試
